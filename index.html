@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Metadata para Videos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; min-height: 100vh; padding: 20px; }
+  .container { max-width: 700px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; color: #111; margin-bottom: 6px; }
+  p.sub { font-size: 14px; color: #666; margin-bottom: 20px; }
+  .row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .row > div { flex: 1; }
+  label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
+  select { width: 100%; padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; color: #111; cursor: pointer; }
+
+  .dropzone { border: 2px dashed #ccc; border-radius: 12px; background: #fff; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
+  .dropzone:hover, .dropzone.over { border-color: #4f46e5; background: #f0f0ff; }
+  .dropzone .icon { font-size: 48px; margin-bottom: 12px; }
+  .dropzone .title { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 6px; }
+  .dropzone .hint { font-size: 13px; color: #888; }
+  .dropzone input { display: none; }
+
+  .file-info { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+  .file-info img { width: 80px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+  .file-info .name { font-size: 14px; font-weight: 600; color: #111; }
+  .file-info .meta { font-size: 12px; color: #888; margin-top: 2px; }
+  .file-info button { margin-left: auto; font-size: 12px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 7px; background: #fff; cursor: pointer; color: #555; flex-shrink: 0; }
+
+  .loading { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 16px; }
+  .loading .spinner { font-size: 32px; animation: spin 1s linear infinite; display: block; margin-bottom: 10px; }
+  .loading p { font-size: 14px; color: #666; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px 14px; background: #fef2f2; border-radius: 8px; }
+
+  .results { display: flex; flex-direction: column; gap: 12px; }
+  .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .score-box { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 14px; text-align: center; }
+  .score-box .slabel { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .score-box .sval { font-size: 24px; font-weight: 700; }
+
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 14px 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .card-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
+  .copy-btn { font-size: 12px; color: #666; background: transparent; border: none; cursor: pointer; padding: 3px 8px; border-radius: 5px; display: flex; align-items: center; gap: 4px; }
+  .copy-btn:hover { background: #f0f0f0; }
+  .copy-btn.done { color: #16a34a; }
+
+  .title-text { font-size: 15px; font-weight: 600; color: #111; line-height: 1.5; }
+  .char-count { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .thumb-overlay { background: #111; border-radius: 8px; padding: 10px 14px; display: inline-block; }
+  .thumb-overlay span { color: #fff; font-size: 17px; font-weight: 700; }
+  .description { font-size: 13px; color: #333; line-height: 1.7; max-height: 180px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; padding: 3px 10px; border-radius: 6px; }
+  .tag.blue { background: #dbeafe; color: #1d4ed8; }
+  .tag.green { background: #dcfce7; color: #15803d; }
+  .chapters { display: flex; flex-direction: column; gap: 6px; }
+  .chapter { display: flex; gap: 10px; align-items: center; }
+  .chap-time { font-size: 11px; font-family: monospace; background: #f3f4f6; padding: 2px 8px; border-radius: 5px; color: #666; min-width: 38px; text-align: center; }
+  .chap-title { font-size: 13px; color: #333; }
+  .tips { display: flex; flex-direction: column; gap: 8px; }
+  .tip { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #333; line-height: 1.6; }
+  .tip::before { content: "✓"; color: #16a34a; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎬 Generador de Metadata para Videos</h1>
+  <p class="sub">Seleccioná tu video y la IA genera título, descripción, tags y hashtags.</p>
+
+  <div class="row">
+    <div>
+      <label>Plataforma</label>
+      <select id="platform">
+        <option>YouTube</option><option>TikTok</option><option>Instagram</option><option>Vimeo</option><option>Facebook</option>
+      </select>
+    </div>
+    <div>
+      <label>Idioma</label>
+      <select id="language">
+        <option value="Spanish">Español</option><option value="English">Inglés</option><option value="Portuguese">Portugués</option><option value="French">Francés</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📁</div>
+    <div class="title">Hacer clic aquí para seleccionar el video</div>
+    <div class="hint">MP4 · MOV · AVI · MKV · WMV</div>
+    <input type="file" id="fileInput" accept="video/*">
+  </div>
+
+  <div class="file-info" id="fileInfo" style="display:none">
+    <img id="thumbImg" src="" alt="preview">
+    <div>
+      <div class="name" id="fileName"></div>
+      <div class="meta" id="fileMeta"></div>
+    </div>
+    <button onclick="document.getElementById('fileInput').click()">Cambiar</button>
+  </div>
+
+  <div class="loading" id="loading" style="display:none">
+    <span class="spinner">⏳</span>
+    <p id="loadingMsg">Procesando...</p>
+  </div>
+
+  <div class="error" id="errorBox" style="display:none"></div>
+
+  <div class="results" id="results" style="display:none">
+    <div class="scores">
+      <div class="score-box"><div class="slabel">SEO Score</div><div class="sval" id="seoScore"></div></div>
+      <div class="score-box"><div class="slabel">Categoría</div><div class="sval" style="font-size:14px" id="category"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">📝 Título</span><button class="copy-btn" onclick="copyField('titleText')">📋 Copiar</button></div>
+      <div class="title-text" id="titleText"></div>
+      <div class="char-count" id="titleChars"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">🖼 Texto miniatura</span><button class="copy-btn" onclick="copyField('thumbText')">📋 Copiar</button></div>
+      <div class="thumb-overlay"><span id="thumbText"></span></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">📄 Descripción</span><button class="copy-btn" onclick="copyField('descText')">📋 Copiar</button></div>
+      <div class="description" id="descText"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">🏷 Tags</span><button class="copy-btn" onclick="copyTags()">📋 Copiar</button></div>
+      <div class="tags" id="tagsBox"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label"># Hashtags</span><button class="copy-btn" onclick="copyHashtags()">📋 Copiar</button></div>
+      <div class="tags" id="hashBox"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">⏱ Capítulos</span><button class="copy-btn" onclick="copyChapters()">📋 Copiar</button></div>
+      <div class="chapters" id="chaptersBox"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-label">💡 Tips</span></div>
+      <div class="tips" id="tipsBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentTags = [], currentHashtags = [], currentChapters = [];
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) processFile(f);
+});
+
+function formatSize(b) { return b < 1024*1024 ? (b/1024).toFixed(1)+' KB' : (b/(1024*1024)).toFixed(1)+' MB'; }
+function formatDur(s) { return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
+
+function extractFrame(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.src = url; v.muted = true;
+    v.addEventListener('loadeddata', () => { v.currentTime = Math.min(2, v.duration * 0.15); });
+    v.addEventListener('seeked', () => {
+      const c = document.createElement('canvas');
+      c.width = 640; c.height = Math.round((640/v.videoWidth)*v.videoHeight) || 360;
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve({ base64: c.toDataURL('image/jpeg', 0.7).split(',')[1], duration: v.duration, w: v.videoWidth, h: v.videoHeight });
+    });
+    v.addEventListener('error', () => { URL.revokeObjectURL(url); resolve(null); });
+    v.load();
+  });
+}
+
+async function processFile(file) {
+  if (!file.type.startsWith('video/')) { showError('El archivo debe ser un video (MP4, MOV, AVI...)'); return; }
+  showError('');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('fileInfo').style.display = 'none';
+  showLoading('Leyendo video...');
+
+  const fd = await extractFrame(file);
+  if (fd) {
+    const blob = await (await fetch('data:image/jpeg;base64,'+fd.base64)).blob();
+    document.getElementById('thumbImg').src = URL.createObjectURL(blob);
+  }
+  document.getElementById('fileName').textContent = file.name.replace(/\.[^.]+$/,'');
+  document.getElementById('fileMeta').textContent = (fd ? formatDur(fd.duration)+' · '+fd.w+'×'+fd.h+' · ' : '') + formatSize(file.size);
+  document.getElementById('fileInfo').style.display = 'flex';
+  showLoading('Analizando con IA...');
+
+  const platform = document.getElementById('platform').value;
+  const lang     = document.getElementById('language').value;
+  const name     = file.name.replace(/[_\-\.]/g,' ').replace(/\.[^.]+$/,'');
+
+  const prompt = `Video: "${name}". Duration: ${fd ? formatDur(fd.duration) : 'unknown'}. Resolution: ${fd ? fd.w+'×'+fd.h : 'unknown'}. Platform: ${platform}. Language: ${lang}.
+Analyze this frame and filename. Return ONLY valid JSON no markdown:
+{"title":"...","description":"200-350 word description in ${lang} with emojis and CTA","tags":["up to 15 tags in ${lang}"],"hashtags":["#10 hashtags in ${lang}"],"thumbnail_text":"3-6 word overlay in ${lang}","category":"...","chapters":[{"time":"0:00","title":"Intro"},{"time":"0:45","title":"..."},{"time":"1:30","title":"..."},{"time":"2:30","title":"..."},{"time":"3:30","title":"Outro"}],"seo_score":85,"tips":["tip1","tip2","tip3"]}`;
+
+  const content = fd?.base64
+    ? [ { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: fd.base64 }}, { type:'text', text: prompt } ]
+    : [ { type:'text', text: prompt } ];
+
+  try {
+    const res = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{ role:'user', content }] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API error');
+    const text = data.content?.find(b => b.type==='text')?.text || '';
+    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
+    showResults(r);
+  } catch(e) {
+    showError('Error al generar metadata: ' + e.message);
+    document.getElementById('dropzone').style.display = 'block';
+  } finally {
+    hideLoading();
+  }
+}
+
+function showResults(r) {
+  currentTags = r.tags || [];
+  currentHashtags = r.hashtags || [];
+  currentChapters = r.chapters || [];
+
+  const seo = r.seo_score || 0;
+  const el = document.getElementById('seoScore');
+  el.textContent = seo + '/100';
+  el.style.color = seo >= 80 ? '#16a34a' : seo >= 55 ? '#d97706' : '#dc2626';
+
+  document.getElementById('category').textContent = r.category || '';
+  document.getElementById('titleText').textContent = r.title || '';
+  document.getElementById('titleChars').textContent = (r.title||'').length + ' caracteres';
+  document.getElementById('thumbText').textContent = r.thumbnail_text || '';
+  document.getElementById('descText').textContent = r.description || '';
+
+  const tagsBox = document.getElementById('tagsBox');
+  tagsBox.innerHTML = '';
+  (r.tags||[]).forEach(t => { const s = document.createElement('span'); s.className='tag blue'; s.textContent=t; tagsBox.appendChild(s); });
+
+  const hashBox = document.getElementById('hashBox');
+  hashBox.innerHTML = '';
+  (r.hashtags||[]).forEach(h => { const s = document.createElement('span'); s.className='tag green'; s.textContent=h; hashBox.appendChild(s); });
+
+  const chapBox = document.getElementById('chaptersBox');
+  chapBox.innerHTML = '';
+  (r.chapters||[]).forEach(c => { chapBox.innerHTML += `<div class="chapter"><span class="chap-time">${c.time}</span><span class="chap-title">${c.title}</span></div>`; });
+
+  const tipsBox = document.getElementById('tipsBox');
+  tipsBox.innerHTML = '';
+  (r.tips||[]).forEach(t => { tipsBox.innerHTML += `<div class="tip">${t}</div>`; });
+
+  document.getElementById('results').style.display = 'flex';
+}
+
+function copyField(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.querySelector(`[onclick="copyField('${id}')"]`);
+    if (b) { b.textContent = '✓ Copiado'; b.classList.add('done'); setTimeout(()=>{ b.textContent='📋 Copiar'; b.classList.remove('done'); }, 2000); }
+  });
+}
+function copyTags() { navigator.clipboard.writeText(currentTags.join(', ')).then(() => flash('copyTags')); }
+function copyHashtags() { navigator.clipboard.writeText(currentHashtags.join(' ')).then(() => flash('copyHashtags')); }
+function copyChapters() { navigator.clipboard.writeText(currentChapters.map(c=>c.time+' '+c.title).join('\n')).then(() => flash('copyChapters')); }
+function flash(fn) {
+  const b = document.querySelector(`[onclick="${fn}()"]`);
+  if (b) { b.textContent = '✓ Copiado'; b.classList.add('done'); setTimeout(()=>{ b.textContent='📋 Copiar'; b.classList.remove('done'); }, 2000); }
+}
+function showLoading(msg) { document.getElementById('loadingMsg').textContent = msg; document.getElementById('loading').style.display = 'block'; }
+function hideLoading() { document.getElementById('loading').style.display = 'none'; }
+function showError(msg) { const b = document.getElementById('errorBox'); if (msg) { b.textContent = msg; b.style.display = 'block'; } else b.style.display = 'none'; }
+</script>
+</body>
+</html>
