@@ -14,40 +14,33 @@
   .row > div { flex: 1; }
   label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
   select { width: 100%; padding: 9px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; color: #111; cursor: pointer; }
-
   .dropzone { border: 2px dashed #ccc; border-radius: 12px; background: #fff; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
   .dropzone:hover, .dropzone.over { border-color: #4f46e5; background: #f0f0ff; }
   .dropzone .icon { font-size: 48px; margin-bottom: 12px; }
   .dropzone .title { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 6px; }
   .dropzone .hint { font-size: 13px; color: #888; }
   .dropzone input { display: none; }
-
   .file-info { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
   .file-info img { width: 80px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
   .file-info .name { font-size: 14px; font-weight: 600; color: #111; }
   .file-info .meta { font-size: 12px; color: #888; margin-top: 2px; }
   .file-info button { margin-left: auto; font-size: 12px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 7px; background: #fff; cursor: pointer; color: #555; flex-shrink: 0; }
-
   .loading { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 16px; }
   .loading .spinner { font-size: 32px; animation: spin 1s linear infinite; display: block; margin-bottom: 10px; }
   .loading p { font-size: 14px; color: #666; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px 14px; background: #fef2f2; border-radius: 8px; }
-
   .results { display: flex; flex-direction: column; gap: 12px; }
   .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .score-box { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 14px; text-align: center; }
   .score-box .slabel { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .score-box .sval { font-size: 24px; font-weight: 700; }
-
   .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 14px 16px; }
   .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .card-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
   .copy-btn { font-size: 12px; color: #666; background: transparent; border: none; cursor: pointer; padding: 3px 8px; border-radius: 5px; display: flex; align-items: center; gap: 4px; }
   .copy-btn:hover { background: #f0f0f0; }
   .copy-btn.done { color: #16a34a; }
-
   .title-text { font-size: 15px; font-weight: 600; color: #111; line-height: 1.5; }
   .char-count { font-size: 11px; color: #aaa; margin-top: 4px; }
   .thumb-overlay { background: #111; border-radius: 8px; padding: 10px 14px; display: inline-block; }
@@ -206,23 +199,20 @@ async function processFile(file) {
   const name     = file.name.replace(/[_\-\.]/g,' ').replace(/\.[^.]+$/,'');
 
   const prompt = `Video: "${name}". Duration: ${fd ? formatDur(fd.duration) : 'unknown'}. Resolution: ${fd ? fd.w+'×'+fd.h : 'unknown'}. Platform: ${platform}. Language: ${lang}.
-Analyze this frame and filename. Return ONLY valid JSON no markdown:
+Analyze this frame and filename. Return ONLY valid JSON, no markdown, no explanation:
 {"title":"...","description":"200-350 word description in ${lang} with emojis and CTA","tags":["up to 15 tags in ${lang}"],"hashtags":["#10 hashtags in ${lang}"],"thumbnail_text":"3-6 word overlay in ${lang}","category":"...","chapters":[{"time":"0:00","title":"Intro"},{"time":"0:45","title":"..."},{"time":"1:30","title":"..."},{"time":"2:30","title":"..."},{"time":"3:30","title":"Outro"}],"seo_score":85,"tips":["tip1","tip2","tip3"]}`;
-
-  const content = fd?.base64
-    ? [ { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: fd.base64 }}, { type:'text', text: prompt } ]
-    : [ { type:'text', text: prompt } ];
 
   try {
     const res = await fetch('/api/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{ role:'user', content }] })
+      body: JSON.stringify({ prompt, imageBase64: fd?.base64 || null })
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message || 'API error');
-    const text = data.content?.find(b => b.type==='text')?.text || '';
-    const r = JSON.parse(text.replace(/```json|```/g,'').trim());
+    if (data.error) throw new Error(data.error);
+    const text = data.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const r = JSON.parse(clean);
     showResults(r);
   } catch(e) {
     showError('Error al generar metadata: ' + e.message);
