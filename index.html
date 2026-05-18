@@ -166,10 +166,10 @@ function extractFrame(file) {
     v.addEventListener('loadeddata', () => { v.currentTime = Math.min(2, v.duration * 0.15); });
     v.addEventListener('seeked', () => {
       const c = document.createElement('canvas');
-      c.width = 640; c.height = Math.round((640/v.videoWidth)*v.videoHeight) || 360;
+      c.width = 320; c.height = Math.round((320/v.videoWidth)*v.videoHeight) || 180;
       c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      resolve({ base64: c.toDataURL('image/jpeg', 0.7).split(',')[1], duration: v.duration, w: v.videoWidth, h: v.videoHeight });
+      resolve({ base64: c.toDataURL('image/jpeg', 0.3).split(',')[1], duration: v.duration, w: v.videoWidth, h: v.videoHeight });
     });
     v.addEventListener('error', () => { URL.revokeObjectURL(url); resolve(null); });
     v.load();
