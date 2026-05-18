@@ -9,7 +9,10 @@ module.exports = async function handler(req, res) {
   try {
     const { prompt, imageBase64 } = req.body;
     const parts = [];
-    if (imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } });
+    // Solo mandamos imagen si es pequeña (menos de 1MB en base64)
+    if (imageBase64 && imageBase64.length < 1000000) {
+      parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } });
+    }
     parts.push({ text: prompt });
 
     const response = await fetch(
@@ -20,12 +23,15 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({ contents: [{ parts }] })
       }
     );
-    const data = await response.json();
+
+    const raw = await response.text();
+    let data;
+    try { data = JSON.parse(raw); } catch(e) { return res.status(500).json({ error: 'Respuesta inválida: ' + raw.slice(0, 200) }); }
 
     if (data.error) return res.status(400).json({ error: data.error.message });
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return res.status(400).json({ error: 'Respuesta vacía: ' + JSON.stringify(data) });
+    if (!text) return res.status(400).json({ error: 'Sin respuesta: ' + JSON.stringify(data).slice(0, 200) });
 
     res.status(200).json({ text });
   } catch (e) {
